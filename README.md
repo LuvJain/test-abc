@@ -18,6 +18,9 @@ A simple Python application demonstrating Python fundamentals with a Hello World
 │   └── test_models.py    # Tests for models.py
 ├── pytest.ini           # Pytest configuration
 ├── requirements.txt      # Python dependencies
+├── run_tests.py         # Helper script to run tests with guidance
+├── app_runner.py        # Interactive runner script for the application
+├── TESTING_GUIDE.md     # Comprehensive guide to testing the application
 └── README.md            # This file
 ```
 
@@ -39,16 +42,32 @@ A simple Python application demonstrating Python fundamentals with a Hello World
 
 ## Running the Application
 
+You can run the application in several ways:
+
+### Using the Interactive App Runner
+
+The application includes an interactive runner script that guides you through running the app and exploring its features:
+
+```
+python app_runner.py
+```
+
+This script provides a user-friendly menu that allows you to:
+- Run the basic Hello World app
+- Run the web app example
+- Run tests
+- Explore the project structure
+
 ### Basic Hello World
 
-Run the main script:
+Run the main script directly:
 ```
 python -m app.main
 ```
 
 ### Web Application Example
 
-Run the app example:
+Run the app example directly:
 ```
 python -m app.app
 ```
@@ -62,10 +81,32 @@ uvicorn app.main:app --reload
 
 ## Running Tests
 
+You can run tests in several ways:
+
+### Using the Test Runner Script
+
+The application includes a test runner script that provides information about the test structure and runs the tests with proper configuration:
+
+```
+python run_tests.py
+```
+
+### Using pytest directly
+
 Run all tests with coverage:
 ```
 python -m pytest
 ```
+
+### Run specific test files
+
+```
+python -m pytest tests/test_app.py
+python -m pytest tests/test_models.py
+python -m pytest tests/test_main.py
+```
+
+For a comprehensive guide on testing, including explanations of test output, coverage reporting, and writing your own tests, see the [TESTING_GUIDE.md](TESTING_GUIDE.md) file.
 
 ## Python Features Demonstrated
 
