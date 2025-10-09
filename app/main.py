@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from .database import engine, Base
-from .routers import notes
+from .routers import notes, users
 
 # Create the database tables
 Base.metadata.create_all(bind=engine)
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # Create the FastAPI application
 app = FastAPI(
     title="Notes API",
-    description="API for saving and managing personal notes",
+    description="API for saving and managing personal notes and users",
     version="1.0.0",
 )
 
@@ -32,6 +32,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(notes.router)
+app.include_router(users.router)
 
 
 @app.get("/")
