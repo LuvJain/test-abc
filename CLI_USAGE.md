@@ -6,6 +6,8 @@ This document provides detailed information on using the CLI tool for interactin
 
 The CLI tool is a command-line interface built with Typer that allows you to interact with the REST API. It provides commands for managing users and tasks, with options for formatting the output.
 
+For a detailed guide on Python data structures and their application in CLI tools, see the [Data Structures Guide](DATA_STRUCTURES.md).
+
 ## Installation
 
 Make sure you have installed the project dependencies:
@@ -283,7 +285,20 @@ Or to filter and process the output using `jq`:
 python cli.py task-list --format json | jq '.[] | select(.completed == true)'
 ```
 
+### Understanding Data Structures in the CLI
+
+The CLI tool uses various Python data structures to efficiently manage and process data:
+
+- **Lists and Tuples**: For handling collections of items and returning multiple values
+- **Dictionaries**: For structured configuration and parameter handling
+- **Sets**: For managing unique values and efficient lookups
+- **Custom Data Classes**: For creating structured, type-safe data models
+- **Collections Module**: For specialized containers like OrderedDict and defaultdict
+
+To learn more about how these data structures are used in CLI applications and how to leverage them in your own code, refer to the [Data Structures Guide](DATA_STRUCTURES.md). This guide includes practical examples specifically tailored for CLI applications.
+
 ## Next Steps
 
 - Learn how to add new commands by examining the code in `app/cli.py`
 - Explore the API documentation at http://localhost:8000/docs
+- Study the [Data Structures Guide](DATA_STRUCTURES.md) to better understand how to build efficient CLI applications
