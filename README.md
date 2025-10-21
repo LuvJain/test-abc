@@ -9,6 +9,7 @@ A demonstration project showcasing how to build a FastAPI application with a cor
 - **Data Validation**: Using Pydantic models for consistent data validation
 - **Rich Output**: Formatted terminal output using the Rich library
 - **Documentation**: Comprehensive docstrings and API documentation
+- **Data Structures Guide**: Detailed explanations of Python data structures and their CLI application
 
 ## Project Structure
 
@@ -21,7 +22,10 @@ A demonstration project showcasing how to build a FastAPI application with a cor
 │   └── database.py         # Mock database functionality
 ├── cli.py                  # CLI tool entry point
 ├── requirements.txt        # Project dependencies
-└── README.md               # Project documentation
+├── README.md               # Project documentation
+├── CLI_USAGE.md            # CLI usage documentation
+├── ARCHITECTURE.md         # Application architecture documentation
+└── DATA_STRUCTURES.md      # Python data structures guide
 ```
 
 ## Getting Started
@@ -180,6 +184,17 @@ python cli.py user-list --format json
 - [httpx](https://www.python-httpx.org/) - HTTP client for Python
 
 ## Development
+
+### Python Data Structures Guide
+
+This project includes a comprehensive guide on Python data structures and their application in CLI tools. The guide covers:
+
+- **Basic Data Structures**: Lists, tuples, dictionaries, and sets
+- **Advanced Data Structures**: Collections module, arrays, and custom data classes
+- **CLI Application**: Examples of using data structures for command-line arguments, configuration, and data processing
+- **Best Practices**: Guidelines for choosing the right data structure and performance considerations
+
+To learn more about Python data structures and how to use them effectively in your CLI applications, see the [Data Structures Guide](DATA_STRUCTURES.md).
 
 ### Adding New Commands
 
