@@ -8,21 +8,32 @@ import graphene
 from graphene import relay
 from datetime import datetime
 from app.models import (
+    # Original model functions
     get_author_by_id,
     get_book_by_id,
     get_books_by_author_id,
     get_all_books,
     get_all_authors,
+    # Enhanced User and Post functions
     get_user_by_id,
+    get_user_by_username,
     get_post_by_id,
+    get_post_by_slug,
     get_posts_by_user_id,
     get_all_users,
+    get_users_paginated,
+    get_users_by_role,
     get_all_posts,
     get_posts_by_tag,
+    get_posts_by_category,
     get_posts_paginated,
+    get_posts_search,
+    get_popular_tags,
     add_user,
     add_post,
     update_post,
+    # Enums
+    UserRole
 )
 
 class AuthorType(graphene.ObjectType):
@@ -49,6 +60,18 @@ class BookType(graphene.ObjectType):
         """Resolver for the author field."""
         return get_author_by_id(parent.author_id)
 
+class UserRoleEnum(graphene.Enum):
+    """GraphQL enum for user roles."""
+    ADMIN = "admin"
+    EDITOR = "editor"
+    AUTHOR = "author"
+    READER = "reader"
+
+    @classmethod
+    def from_model_role(cls, role):
+        """Convert a model UserRole to a GraphQL UserRoleEnum."""
+        return cls[role.name]
+
 class UserType(graphene.ObjectType):
     """GraphQL type for the User model."""
     id = graphene.ID(required=True)
@@ -56,27 +79,84 @@ class UserType(graphene.ObjectType):
     email = graphene.String(required=True)
     created_at = graphene.DateTime(required=True)
     bio = graphene.String()
-    posts = graphene.List(lambda: PostType, description="Posts written by this user")
+    role = graphene.Field(UserRoleEnum)
+    last_login = graphene.DateTime()
+    profile_image = graphene.String()
+    location = graphene.String()
+    website = graphene.String()
+    is_verified = graphene.Boolean()
+    followers_count = graphene.Int()
+    following_count = graphene.Int()
 
-    def resolve_posts(parent, info):
+    # Relationships
+    posts = graphene.List(
+        lambda: PostType,
+        description="Posts written by this user",
+        limit=graphene.Int(description="Limit the number of posts returned"),
+        published_only=graphene.Boolean(description="Filter to only show published posts")
+    )
+    posts_count = graphene.Int(description="Total number of posts by this user")
+
+    def resolve_role(parent, info):
+        """Resolver for the role field."""
+        return UserRoleEnum.from_model_role(parent.role)
+
+    def resolve_posts(parent, info, limit=None, published_only=False):
         """Resolver for the posts field."""
-        return get_posts_by_user_id(parent.id)
+        return get_posts_by_user_id(parent.id, limit, published_only)
+
+    def resolve_posts_count(parent, info):
+        """Resolver for the posts_count field."""
+        posts = get_posts_by_user_id(parent.id)
+        return len(posts)
 
 class PostType(graphene.ObjectType):
     """GraphQL type for the Post model."""
     id = graphene.ID(required=True)
     title = graphene.String(required=True)
     content = graphene.String(required=True)
+    summary = graphene.String()
     author_id = graphene.Int(required=True)
     created_at = graphene.DateTime(required=True)
     updated_at = graphene.DateTime(required=True)
     published = graphene.Boolean(required=True)
     tags = graphene.List(graphene.String, required=True)
+    category = graphene.String()
+    likes_count = graphene.Int()
+    comments_count = graphene.Int()
+    featured_image = graphene.String()
+    read_time = graphene.Int(description="Estimated reading time in minutes")
+    slug = graphene.String()
+
+    # Relationships
     author = graphene.Field(UserType, description="Author of this post")
+    related_posts = graphene.List(
+        lambda: PostType,
+        description="Related posts with similar tags or by the same author",
+        limit=graphene.Int(description="Limit the number of related posts returned")
+    )
 
     def resolve_author(parent, info):
         """Resolver for the author field."""
         return get_user_by_id(parent.author_id)
+
+    def resolve_related_posts(parent, info, limit=3):
+        """Resolver for the related_posts field."""
+        # Get posts with at least one matching tag
+        related_by_tag = []
+        for post in get_all_posts(published_only=True):
+            if post.id != parent.id and any(tag in parent.tags for tag in post.tags):
+                related_by_tag.append(post)
+
+        # Get other posts by same author
+        related_by_author = [
+            post for post in get_posts_by_user_id(parent.author_id, published_only=True)
+            if post.id != parent.id and post not in related_by_tag
+        ]
+
+        # Combine and limit results
+        related = related_by_tag + related_by_author
+        return related[:limit]
 
 class TagCountType(graphene.ObjectType):
     """GraphQL type for tag counts."""
@@ -224,28 +304,51 @@ class Query(graphene.ObjectType):
         description="Get all authors"
     )
 
-    # New queries for User and Post
+    # Enhanced User queries
     user = graphene.Field(
         UserType,
-        id=graphene.ID(required=True),
-        description="Get a user by their ID"
+        id=graphene.ID(description="User ID"),
+        username=graphene.String(description="Username"),
+        description="Get a user by ID or username"
     )
     users = graphene.List(
         UserType,
-        description="Get all users"
+        description="Get users with various filters",
+        limit=graphene.Int(description="Limit the number of users returned"),
+        offset=graphene.Int(description="Skip the specified number of users"),
+        role=graphene.String(description="Filter users by role")
     )
+
+    # Enhanced Post queries
     post = graphene.Field(
         PostType,
-        id=graphene.ID(required=True),
-        description="Get a post by its ID"
+        id=graphene.ID(description="Post ID"),
+        slug=graphene.String(description="Post slug"),
+        description="Get a post by ID or slug"
     )
     posts = graphene.List(
         PostType,
-        description="Get all posts",
+        description="Get posts with advanced filtering and pagination",
         published_only=graphene.Boolean(description="Filter to only show published posts"),
         tag=graphene.String(description="Filter posts by tag"),
+        category=graphene.String(description="Filter posts by category"),
+        author_id=graphene.ID(description="Filter posts by author ID"),
+        search=graphene.String(description="Search term to find in title, content, or tags"),
+        order_by=graphene.String(description="Order posts by field: created_at, updated_at, likes_count, or comments_count"),
         limit=graphene.Int(description="Limit the number of posts returned"),
         offset=graphene.Int(description="Skip the specified number of posts")
+    )
+
+    # Additional specialized queries
+    popular_tags = graphene.List(
+        TagCountType,
+        limit=graphene.Int(description="Limit the number of tags returned"),
+        min_count=graphene.Int(description="Minimum count to include a tag"),
+        description="Get popular tags with their usage counts"
+    )
+    posts_by_category = graphene.List(
+        graphene.String,
+        description="Get all unique post categories"
     )
 
     # Original resolvers
@@ -268,37 +371,106 @@ class Query(graphene.ObjectType):
         """Resolver for the authors field."""
         return get_all_authors()
 
-    # New resolvers for User and Post
-    def resolve_user(root, info, id):
-        """Resolver for the user field."""
-        return get_user_by_id(int(id))
+    # Enhanced resolvers for User and Post
+    def resolve_user(root, info, id=None, username=None):
+        """
+        Resolver for the user field.
 
-    def resolve_users(root, info):
-        """Resolver for the users field."""
-        return get_all_users()
+        Allows fetching a user by either ID or username.
+        """
+        if id:
+            return get_user_by_id(int(id))
+        elif username:
+            return get_user_by_username(username)
+        else:
+            raise ValueError("Either id or username must be provided")
 
-    def resolve_post(root, info, id):
-        """Resolver for the post field."""
-        return get_post_by_id(int(id))
+    def resolve_users(root, info, limit=None, offset=None, role=None):
+        """
+        Resolver for the users field.
 
-    def resolve_posts(root, info, published_only=None, tag=None, limit=None, offset=None):
-        """Resolver for the posts field."""
-        # Apply filtering for published posts
-        posts = get_all_posts(published_only=published_only if published_only is not None else False)
+        Supports pagination and filtering by role.
+        """
+        users = get_all_users()
 
-        # Apply tag filtering if specified
-        if tag:
-            posts = [post for post in posts if tag in post.tags]
+        # Filter by role if specified
+        if role:
+            try:
+                role_enum = UserRole[role.upper()]
+                users = [user for user in users if user.role == role_enum]
+            except KeyError:
+                raise ValueError(f"Invalid role: {role}")
 
         # Apply pagination if specified
         if offset is not None or limit is not None:
             offset = offset or 0
             if limit is not None:
-                posts = posts[offset:offset + limit]
+                users = users[offset:offset + limit]
             else:
-                posts = posts[offset:]
+                users = users[offset:]
+
+        return users
+
+    def resolve_post(root, info, id=None, slug=None):
+        """
+        Resolver for the post field.
+
+        Allows fetching a post by either ID or slug.
+        """
+        if id:
+            return get_post_by_id(int(id))
+        elif slug:
+            return get_post_by_slug(slug)
+        else:
+            raise ValueError("Either id or slug must be provided")
+
+    def resolve_posts(root, info, published_only=False, tag=None, category=None,
+                     author_id=None, search=None, order_by=None, limit=None, offset=None):
+        """
+        Resolver for the posts field.
+
+        Supports advanced filtering, sorting and pagination.
+        """
+        # Handle search separately since it needs different logic
+        if search:
+            return get_posts_search(search, offset or 0, limit or 10, published_only)
+
+        # Get posts with all the filtering options
+        posts = get_posts_paginated(
+            offset=offset or 0,
+            limit=limit or 10,
+            published_only=published_only,
+            order_by=order_by,
+            category=category,
+            tag=tag
+        )
+
+        # Apply author filter if specified
+        if author_id:
+            posts = [post for post in posts if post.author_id == int(author_id)]
 
         return posts
+
+    def resolve_popular_tags(root, info, limit=10, min_count=1):
+        """
+        Resolver for the popular_tags field.
+
+        Returns popular tags with their counts.
+        """
+        tag_counts = get_popular_tags(limit, min_count)
+        return [TagCountType(tag=tag, count=count) for tag, count in tag_counts]
+
+    def resolve_posts_by_category(root, info):
+        """
+        Resolver for the posts_by_category field.
+
+        Returns a list of all unique post categories.
+        """
+        categories = set()
+        for post in get_all_posts():
+            if post.category:
+                categories.add(post.category)
+        return sorted(list(categories))
 
 class Mutation(graphene.ObjectType):
     """Root mutation object for the GraphQL API."""
