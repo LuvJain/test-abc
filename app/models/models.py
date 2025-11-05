@@ -3,7 +3,28 @@ Data models for the GraphQL API.
 This module defines the core data models for the User, Post, Book, and Author entities.
 """
 
-from datetime import datetime, date
+import logging
+import os
+import bcrypt
+import jwt
+from datetime import datetime, date, timedelta
+from enum import Enum
+
+# Configure logging for authentication events
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger('auth')
+
+# JWT configuration
+JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'super-secret-key-for-jwt')  # In production, use environment variable
+JWT_ALGORITHM = 'HS256'
+JWT_EXPIRATION_DELTA = timedelta(days=1)  # Token expiration time
+
+class UserRole(Enum):
+    """Enum for user roles with different permission levels."""
+    ADMIN = "admin"      # Full access to all resources
+    EDITOR = "editor"    # Can create and edit own content, edit others
+    AUTHOR = "author"    # Can create and edit own content
+    READER = "reader"    # Read-only access
 
 class Author:
     """
@@ -45,15 +66,45 @@ class User:
         id (int): The unique identifier for the user.
         username (str): The username of the user.
         email (str): The email address of the user.
+        password_hash (str): The hashed password of the user.
+        role (UserRole): The role of the user (admin, editor, author, reader).
         created_at (datetime): The date and time when the user was created.
         bio (str, optional): A short biography of the user.
+        last_login (datetime, optional): The last time the user logged in.
     """
-    def __init__(self, id, username, email, created_at=None, bio=None):
+    def __init__(self, id, username, email, password_hash=None, role=UserRole.READER,
+                 created_at=None, bio=None, last_login=None):
         self.id = id
         self.username = username
         self.email = email
+        self.password_hash = password_hash
+        self.role = role
         self.created_at = created_at or datetime.now()
         self.bio = bio
+        self.last_login = last_login
+
+    def check_password(self, password):
+        """Check if the provided password matches the stored password hash."""
+        if not self.password_hash:
+            return False
+        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+
+    def generate_auth_token(self):
+        """Generate a JWT token for this user."""
+        payload = {
+            'user_id': self.id,
+            'username': self.username,
+            'role': self.role.value,
+            'exp': datetime.utcnow() + JWT_EXPIRATION_DELTA
+        }
+        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        logger.info(f"Generated token for user {self.username} (ID: {self.id})")
+        return token
+
+    @staticmethod
+    def hash_password(password):
+        """Hash a password using bcrypt."""
+        return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 class Post:
     """
@@ -94,11 +145,24 @@ sample_books = [
     Book(5, "The Lord of the Rings", 3, 1954, "Fantasy")
 ]
 
+# Create sample users with predefined password hashes (in real app, these would be properly generated)
 sample_users = [
-    User(1, "john_doe", "john@example.com", datetime(2023, 1, 15), "Software developer and tech enthusiast"),
-    User(2, "jane_smith", "jane@example.com", datetime(2023, 2, 20), "Digital artist and photographer"),
-    User(3, "bob_johnson", "bob@example.com", datetime(2023, 3, 10), "Travel blogger and adventure seeker"),
-    User(4, "alice_brown", "alice@example.com", datetime(2023, 4, 5), "Science writer and researcher")
+    User(1, "john_doe", "john@example.com",
+         User.hash_password("password123"),
+         UserRole.ADMIN,
+         datetime(2023, 1, 15), "Software developer and tech enthusiast"),
+    User(2, "jane_smith", "jane@example.com",
+         User.hash_password("password123"),
+         UserRole.EDITOR,
+         datetime(2023, 2, 20), "Digital artist and photographer"),
+    User(3, "bob_johnson", "bob@example.com",
+         User.hash_password("password123"),
+         UserRole.AUTHOR,
+         datetime(2023, 3, 10), "Travel blogger and adventure seeker"),
+    User(4, "alice_brown", "alice@example.com",
+         User.hash_password("password123"),
+         UserRole.READER,
+         datetime(2023, 4, 5), "Science writer and researcher")
 ]
 
 sample_posts = [
@@ -187,21 +251,41 @@ def get_posts_paginated(offset=0, limit=10, published_only=False):
     posts = get_all_posts(published_only)
     return posts[offset:offset + limit]
 
-def add_user(username, email, bio=None):
+def add_user(username, email, password, role=UserRole.READER, bio=None):
     """
     Add a new user.
 
     Args:
         username (str): The username of the user.
         email (str): The email address of the user.
+        password (str): The plain text password (will be hashed).
+        role (UserRole, optional): The role of the user. Defaults to UserRole.READER.
         bio (str, optional): A short biography of the user.
 
     Returns:
         User: The newly created user.
     """
+    # Hash the password
+    password_hash = User.hash_password(password)
+
+    # Create a new user ID
     new_id = max(user.id for user in sample_users) + 1
-    new_user = User(new_id, username, email, datetime.now(), bio)
+
+    # Create the user
+    new_user = User(
+        id=new_id,
+        username=username,
+        email=email,
+        password_hash=password_hash,
+        role=role,
+        created_at=datetime.now(),
+        bio=bio
+    )
+
+    # Add user to the sample data
     sample_users.append(new_user)
+    logger.info(f"Created new user: {username} (ID: {new_id}) with role: {role.value}")
+
     return new_user
 
 def add_post(title, content, author_id, tags=None, published=True):
@@ -253,3 +337,120 @@ def update_post(id, title=None, content=None, tags=None, published=None):
 
     post.updated_at = datetime.now()
     return post
+
+# Authentication and authorization functions
+def authenticate_user(username, password):
+    """
+    Authenticate a user by username and password.
+
+    Args:
+        username (str): The username of the user to authenticate.
+        password (str): The password to check.
+
+    Returns:
+        User: The authenticated user or None if authentication failed.
+    """
+    # Find user by username
+    for user in sample_users:
+        if user.username == username:
+            # Check password
+            if user.check_password(password):
+                # Log successful login
+                logger.info(f"User {username} (ID: {user.id}) authenticated successfully")
+                # Update last login time
+                user.last_login = datetime.now()
+                return user
+            else:
+                # Log failed login
+                logger.warning(f"Failed login attempt for user: {username}")
+                return None
+
+    # Log invalid username
+    logger.warning(f"Login attempt with invalid username: {username}")
+    return None
+
+def get_user_by_token(token):
+    """
+    Validate a JWT token and return the corresponding user.
+
+    Args:
+        token (str): The JWT token to validate.
+
+    Returns:
+        User: The user associated with the token or None if the token is invalid.
+    """
+    try:
+        # Decode the token
+        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+
+        # Get the user_id from the payload
+        user_id = payload.get('user_id')
+
+        # Find the user
+        user = get_user_by_id(user_id)
+
+        if user:
+            logger.info(f"Token validated for user: {user.username} (ID: {user.id})")
+            return user
+        else:
+            logger.warning(f"Token contains unknown user ID: {user_id}")
+            return None
+
+    except jwt.ExpiredSignatureError:
+        # Token has expired
+        logger.warning("Expired token used for authentication")
+        return None
+    except jwt.InvalidTokenError:
+        # Invalid token
+        logger.warning("Invalid token used for authentication")
+        return None
+
+def login_user(username, password):
+    """
+    Login a user and generate a JWT token.
+
+    Args:
+        username (str): The username of the user.
+        password (str): The password of the user.
+
+    Returns:
+        tuple: (token, user) if authentication succeeds, (None, None) otherwise
+    """
+    # Authenticate user
+    user = authenticate_user(username, password)
+
+    if user:
+        # Generate a token
+        token = user.generate_auth_token()
+        return token, user
+
+    return None, None
+
+def user_can_modify_post(user, post):
+    """
+    Check if a user has permission to modify a post.
+
+    Args:
+        user (User): The user requesting the modification.
+        post (Post): The post to be modified.
+
+    Returns:
+        bool: True if the user has permission, False otherwise.
+    """
+    # Admins can modify any post
+    if user.role == UserRole.ADMIN:
+        return True
+
+    # Editors can modify any post
+    if user.role == UserRole.EDITOR:
+        return True
+
+    # Authors can only modify their own posts
+    if user.role == UserRole.AUTHOR and post.author_id == user.id:
+        return True
+
+    # Log unauthorized attempt
+    logger.warning(f"Unauthorized modification attempt: User {user.username} (ID: {user.id}) tried to modify post {post.id} by user {post.author_id}")
+
+    # Default is to deny access
+    return False
