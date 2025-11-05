@@ -57,11 +57,35 @@ cd python_data_structures
 
 ### Running the Application
 
+#### Interactive Menu Interface
 ```bash
 python main.py
 ```
 
+#### Command Line Interface
+```bash
+# Show help and available commands
+python cli.py --help
+
+# Learn about a specific data structure
+python cli.py lists
+python cli.py dictionaries
+python cli.py tuples
+python cli.py sets
+
+# Access specific aspects of a data structure
+python cli.py lists about     # Basic concepts
+python cli.py lists ops       # Operations and methods
+python cli.py lists patterns  # Common patterns and use cases
+python cli.py lists demo      # Interactive demo
+
+# Show application information
+python cli.py --about
+```
+
 ## Usage
+
+### Interactive Menu Interface
 
 The application presents a menu-driven interface:
 
@@ -73,6 +97,14 @@ The application presents a menu-driven interface:
    - Try operations with an interactive demo
 
 Use keyboard input to navigate menus and follow on-screen instructions.
+
+### Command Line Interface
+
+The CLI allows direct access to specific content:
+
+1. Specify the data structure you want to learn about
+2. Optionally specify an action (about, ops, patterns, demo)
+3. Get immediate access to the requested information or demo
 
 ## Contributing
 
