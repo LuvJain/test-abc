@@ -1,6 +1,6 @@
-# cli basics and ensure everything is nice
+# cli basics and ensure everything is  super nice
 
-Story ID: 1d19de9a-fc06-44be-b128-2c845a890d9e
+Story ID: e315b85d-4f02-4804-9151-658e8f8a80aa
 Intent: fundamentals of python
 Run ID: 4e5a4589-fae7-48e9-8c5b-6fe94250bf25
 
