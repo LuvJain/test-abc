@@ -1,0 +1,2 @@
+# No external dependencies required for basic data structures
+# This file exists to follow Python best practices for project structure
