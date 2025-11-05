@@ -1,6 +1,6 @@
-# cli basics and ensure everything is  the best and uber nice. fundastic
+# cli essentials
 
-Story ID: cfc983b6-f426-41c2-ab73-01ff939d128e
+Story ID: 8109d217-f370-493b-8e88-3bc3f82b60ed
 Intent: fundamentals of python
 Run ID: 32713c8a-6c4d-4e27-9033-36bcf2b7a718
 
