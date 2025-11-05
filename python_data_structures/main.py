@@ -8,10 +8,12 @@ This application provides an interactive way to explore Python's
 core data structures: lists, dictionaries, tuples, and sets.
 
 Usage:
-    python main.py
+    python main.py          # Interactive menu interface
+    python cli.py --help    # CLI interface with command-line options
 
 The application will present a menu-driven interface for exploring
-different data structures and their operations.
+different data structures and their operations when run interactively.
+For command-line options, use the cli.py module.
 """
 
 import sys
@@ -312,7 +314,7 @@ def about_application():
     print_header("ABOUT THIS APPLICATION")
 
     print("Python Data Structures Learning Application")
-    print("Version: 1.0.0\n")
+    print("Version: 1.1.0\n")
 
     print("This application is designed to help you learn about Python's")
     print("core data structures through interactive examples and demonstrations.\n")
@@ -328,6 +330,15 @@ def about_application():
     print("• Operations and methods")
     print("• Common patterns and use cases")
     print("• Interactive demonstrations\n")
+
+    print("Application Interfaces:")
+    print("• Interactive Menu: Run 'python main.py'")
+    print("• Command Line Interface: Run 'python cli.py --help'")
+    print("  Examples:")
+    print("    - python cli.py lists              # Learn about lists")
+    print("    - python cli.py dictionaries ops   # Dictionary operations")
+    print("    - python cli.py tuples demo        # Interactive tuples demo")
+    print("    - python cli.py sets patterns      # Common set patterns\n")
 
     print("For more in-depth learning, consider exploring the official Python")
     print("documentation at https://docs.python.org/3/tutorial/datastructures.html")
