@@ -1,0 +1,32 @@
+#!/usr/bin/env python3
+"""
+Python Data Structures CLI
+
+A command-line interface for learning about Python data structures.
+
+Usage:
+    pyds <command> [options]
+
+Commands:
+    list        Learn about Python lists
+    dict        Learn about Python dictionaries
+    tuple       Learn about Python tuples
+    set         Learn about Python sets
+    info        Show information about the application
+
+Use 'pyds <command> --help' for more information about a specific command.
+"""
+
+import sys
+import os
+
+# Adjust the path to include the parent directory
+parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
+# Import the CLI main function
+from python_data_structures.cli.main import main
+
+if __name__ == "__main__":
+    main()

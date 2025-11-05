@@ -36,7 +36,8 @@ def print_menu():
     clear_screen()
     print_header("PYTHON DATA STRUCTURES LEARNING APPLICATION")
     print("Welcome to the Python Data Structures Learning Application!")
-    print("This application will help you learn about Python's core data structures.\n")
+    print("This application will help you learn about Python's core data structures.")
+    print("TIP: You can also use the CLI interface by running './pyds' from the command line.\n")
 
     print("Please select a data structure to explore:\n")
     print("1. Lists")
@@ -315,7 +316,9 @@ def about_application():
     print("Version: 1.0.0\n")
 
     print("This application is designed to help you learn about Python's")
-    print("core data structures through interactive examples and demonstrations.\n")
+    print("core data structures through interactive examples and demonstrations.")
+    print("It offers both an interactive menu-driven interface and a command-line")
+    print("interface for flexibility in how you learn and explore.\n")
 
     print("Core data structures covered:")
     print("• Lists: Ordered, mutable sequences")
