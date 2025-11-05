@@ -71,9 +71,17 @@ class User:
         created_at (datetime): The date and time when the user was created.
         bio (str, optional): A short biography of the user.
         last_login (datetime, optional): The last time the user logged in.
+        profile_image (str, optional): URL to user's profile image.
+        location (str, optional): User's geographical location.
+        website (str, optional): User's website URL.
+        is_verified (bool): Whether the user's account is verified.
+        followers_count (int): Number of followers.
+        following_count (int): Number of users being followed.
     """
     def __init__(self, id, username, email, password_hash=None, role=UserRole.READER,
-                 created_at=None, bio=None, last_login=None):
+                 created_at=None, bio=None, last_login=None, profile_image=None,
+                 location=None, website=None, is_verified=False,
+                 followers_count=0, following_count=0):
         self.id = id
         self.username = username
         self.email = email
@@ -82,6 +90,12 @@ class User:
         self.created_at = created_at or datetime.now()
         self.bio = bio
         self.last_login = last_login
+        self.profile_image = profile_image
+        self.location = location
+        self.website = website
+        self.is_verified = is_verified
+        self.followers_count = followers_count
+        self.following_count = following_count
 
     def check_password(self, password):
         """Check if the provided password matches the stored password hash."""
@@ -114,21 +128,40 @@ class Post:
         id (int): The unique identifier for the post.
         title (str): The title of the post.
         content (str): The content of the post.
+        summary (str): A short summary of the post content.
         author_id (int): The ID of the user who authored the post.
         created_at (datetime): The date and time when the post was created.
         updated_at (datetime): The date and time when the post was last updated.
         published (bool): Whether the post is published or still in draft.
         tags (list): A list of tags associated with the post.
+        category (str): The category of the post.
+        likes_count (int): Number of likes the post has received.
+        comments_count (int): Number of comments on the post.
+        featured_image (str): URL to the featured image for the post.
+        read_time (int): Estimated reading time in minutes.
+        slug (str): URL-friendly version of the title.
     """
-    def __init__(self, id, title, content, author_id, created_at=None, updated_at=None, published=True, tags=None):
+    def __init__(self, id, title, content, author_id, created_at=None, updated_at=None,
+                 published=True, tags=None, summary=None, category=None,
+                 likes_count=0, comments_count=0, featured_image=None,
+                 read_time=None, slug=None):
         self.id = id
         self.title = title
         self.content = content
+        self.summary = summary or (content[:100] + '...' if len(content) > 100 else content)
         self.author_id = author_id
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self.published = published
         self.tags = tags or []
+        self.category = category
+        self.likes_count = likes_count
+        self.comments_count = comments_count
+        self.featured_image = featured_image
+        # Estimate read time if not provided: average person reads about 200 words per minute
+        self.read_time = read_time or max(1, len(content.split()) // 200)
+        # Create slug from title if not provided
+        self.slug = slug or title.lower().replace(' ', '-')
 
 # Sample data for demonstration purposes
 sample_authors = [
@@ -150,28 +183,187 @@ sample_users = [
     User(1, "john_doe", "john@example.com",
          User.hash_password("password123"),
          UserRole.ADMIN,
-         datetime(2023, 1, 15), "Software developer and tech enthusiast"),
+         datetime(2023, 1, 15), "Software developer and tech enthusiast",
+         datetime(2023, 11, 1), "https://example.com/john.jpg",
+         "San Francisco, CA", "https://johndoe.dev", True, 120, 45),
     User(2, "jane_smith", "jane@example.com",
          User.hash_password("password123"),
          UserRole.EDITOR,
-         datetime(2023, 2, 20), "Digital artist and photographer"),
+         datetime(2023, 2, 20), "Digital artist and photographer",
+         datetime(2023, 10, 25), "https://example.com/jane.jpg",
+         "New York, NY", "https://janesmith.art", True, 350, 210),
     User(3, "bob_johnson", "bob@example.com",
          User.hash_password("password123"),
          UserRole.AUTHOR,
-         datetime(2023, 3, 10), "Travel blogger and adventure seeker"),
+         datetime(2023, 3, 10), "Travel blogger and adventure seeker",
+         datetime(2023, 11, 2), "https://example.com/bob.jpg",
+         "Austin, TX", "https://bobtravels.com", False, 75, 120),
     User(4, "alice_brown", "alice@example.com",
          User.hash_password("password123"),
          UserRole.READER,
-         datetime(2023, 4, 5), "Science writer and researcher")
+         datetime(2023, 4, 5), "Science writer and researcher",
+         datetime(2023, 10, 30), "https://example.com/alice.jpg",
+         "Seattle, WA", "https://alicescience.org", True, 250, 180)
 ]
 
+full_graphql_content = """This is a beginner's guide to GraphQL. In this comprehensive tutorial, we'll explore the fundamentals of GraphQL, how it differs from REST APIs, and how to build your first GraphQL server.
+
+GraphQL is a query language for APIs and a runtime for executing those queries against your data. It was developed by Facebook in 2012 and released as an open-source project in 2015. Unlike REST, GraphQL allows clients to request exactly the data they need, making it possible to fetch all required data in a single request.
+
+Key concepts we'll cover:
+1. Schemas and types
+2. Queries and mutations
+3. Resolvers
+4. GraphQL clients
+5. Best practices and common patterns
+
+Let's get started with setting up a basic GraphQL server using Python and Graphene."""
+
+full_advanced_graphql = """In this post, we'll explore advanced GraphQL features and techniques that will help you build more robust and efficient APIs. We'll go beyond the basics and dive into real-world scenarios that require sophisticated solutions.
+
+Topics covered:
+1. Implementing authentication and authorization
+2. Optimizing performance with dataloader
+3. Managing GraphQL subscriptions for real-time features
+4. Error handling patterns
+5. Schema stitching and federation
+6. Testing GraphQL APIs
+7. Monitoring and metrics
+
+Each section includes practical code examples and best practices from production environments."""
+
+full_travel_content = """Recently I visited the amazing landscapes of Patagonia, where the mountains meet glaciers and the wilderness stretches as far as the eye can see. This trip was a photographer's dream and an adventurer's paradise.
+
+My journey began in El Calafate, Argentina, where I witnessed the massive Perito Moreno Glacier. The crackling sounds of the ice and the occasional dramatic calving events left me in awe of nature's power. From there, I trekked through Torres del Paine National Park in Chile, navigating the famous W Circuit over 5 challenging but rewarding days.
+
+The highlight was watching the sunrise cast its golden light on the granite towers that give the park its name. Despite the unpredictable weather and physically demanding hikes, every moment spent in this pristine wilderness was worth it."""
+
+full_photography_content = """Here are my top 10 photography tips for beginners that will immediately improve your photos, regardless of what camera you're using:
+
+1. Master the exposure triangle: Understand how aperture, shutter speed, and ISO work together
+2. Follow the rule of thirds: Place important elements along the grid lines or at their intersections
+3. Find good light: Photography is all about light, so learn to recognize quality light
+4. Change your perspective: Don't just shoot from eye level
+5. Focus on composition: Pay attention to what you include in the frame
+6. Understand depth of field: Control which parts of your image are in focus
+7. Invest time in post-processing: Learn basic editing techniques
+8. Practice with different focal lengths: Understand how they affect your image
+9. Capture the decisive moment: Anticipate and be ready for the perfect timing
+10. Shoot in RAW: Give yourself more flexibility in post-processing
+
+The most important tip? Practice consistently and analyze your results."""
+
+full_ai_content = """Artificial intelligence is rapidly evolving, transforming industries and reshaping our daily lives. From self-driving cars to personalized medicine, AI technologies are creating unprecedented possibilities while raising important ethical questions.
+
+Recent breakthroughs in large language models like GPT-4 and multimodal models that can process text, images, and audio simultaneously have accelerated AI adoption. These advances are enabling more natural human-computer interactions and more sophisticated problem-solving capabilities.
+
+Looking ahead, researchers are focusing on developing more energy-efficient AI systems, improving interpretability and transparency, and addressing bias in training data. The concept of artificial general intelligence (AGI) remains a long-term goal, though opinions vary widely on when or if it will be achieved.
+
+As AI becomes more integrated into critical systems, establishing robust governance frameworks and ethical guidelines becomes increasingly important. Balancing innovation with responsible development will be key to realizing AI's potential to address global challenges."""
+
 sample_posts = [
-    Post(1, "Getting Started with GraphQL", "This is a beginner's guide to GraphQL...", 1, datetime(2023, 5, 10), datetime(2023, 5, 10), True, ["GraphQL", "API", "Tutorial"]),
-    Post(2, "Advanced GraphQL Techniques", "In this post, we'll explore advanced GraphQL features...", 1, datetime(2023, 6, 15), datetime(2023, 6, 20), True, ["GraphQL", "Advanced"]),
-    Post(3, "My Travel Adventures", "Recently I visited the amazing landscapes of...", 3, datetime(2023, 7, 5), datetime(2023, 7, 5), True, ["Travel", "Adventure"]),
-    Post(4, "Photography Tips", "Here are my top 10 photography tips for beginners...", 2, datetime(2023, 8, 12), datetime(2023, 8, 15), True, ["Photography", "Tutorial"]),
-    Post(5, "The Future of AI", "Artificial intelligence is rapidly evolving...", 4, datetime(2023, 9, 1), datetime(2023, 9, 3), True, ["AI", "Technology", "Future"]),
-    Post(6, "Draft: New Project Ideas", "Working on some new project ideas...", 1, datetime(2023, 10, 1), datetime(2023, 10, 1), False, ["Projects", "Ideas"])
+    Post(
+        id=1,
+        title="Getting Started with GraphQL",
+        content=full_graphql_content,
+        author_id=1,
+        created_at=datetime(2023, 5, 10),
+        updated_at=datetime(2023, 5, 10),
+        published=True,
+        tags=["GraphQL", "API", "Tutorial"],
+        summary="A comprehensive beginner's guide to GraphQL, covering fundamentals and how to build your first GraphQL server.",
+        category="Programming",
+        likes_count=145,
+        comments_count=32,
+        featured_image="https://example.com/images/graphql-intro.png",
+        read_time=7,
+        slug="getting-started-with-graphql"
+    ),
+    Post(
+        id=2,
+        title="Advanced GraphQL Techniques",
+        content=full_advanced_graphql,
+        author_id=1,
+        created_at=datetime(2023, 6, 15),
+        updated_at=datetime(2023, 6, 20),
+        published=True,
+        tags=["GraphQL", "Advanced", "Performance"],
+        summary="Dive deep into advanced GraphQL features including authentication, performance optimization, and real-time subscriptions.",
+        category="Programming",
+        likes_count=87,
+        comments_count=24,
+        featured_image="https://example.com/images/advanced-graphql.png",
+        read_time=12,
+        slug="advanced-graphql-techniques"
+    ),
+    Post(
+        id=3,
+        title="My Travel Adventures in Patagonia",
+        content=full_travel_content,
+        author_id=3,
+        created_at=datetime(2023, 7, 5),
+        updated_at=datetime(2023, 7, 5),
+        published=True,
+        tags=["Travel", "Adventure", "Photography", "Patagonia"],
+        summary="A journey through the breathtaking landscapes of Patagonia, from massive glaciers to stunning mountain peaks.",
+        category="Travel",
+        likes_count=210,
+        comments_count=45,
+        featured_image="https://example.com/images/patagonia.jpg",
+        read_time=8,
+        slug="travel-adventures-patagonia"
+    ),
+    Post(
+        id=4,
+        title="Photography Tips for Beginners",
+        content=full_photography_content,
+        author_id=2,
+        created_at=datetime(2023, 8, 12),
+        updated_at=datetime(2023, 8, 15),
+        published=True,
+        tags=["Photography", "Tutorial", "Beginner"],
+        summary="Ten essential photography tips for beginners that will immediately improve your photos regardless of your equipment.",
+        category="Photography",
+        likes_count=320,
+        comments_count=78,
+        featured_image="https://example.com/images/photography-tips.jpg",
+        read_time=5,
+        slug="photography-tips-beginners"
+    ),
+    Post(
+        id=5,
+        title="The Future of AI and Its Impact",
+        content=full_ai_content,
+        author_id=4,
+        created_at=datetime(2023, 9, 1),
+        updated_at=datetime(2023, 9, 3),
+        published=True,
+        tags=["AI", "Technology", "Future", "Ethics"],
+        summary="An exploration of how artificial intelligence is evolving and its potential impact on society, industries, and ethics.",
+        category="Technology",
+        likes_count=176,
+        comments_count=53,
+        featured_image="https://example.com/images/ai-future.jpg",
+        read_time=6,
+        slug="future-of-ai-impact"
+    ),
+    Post(
+        id=6,
+        title="Draft: New Project Ideas",
+        content="Working on some new project ideas including a machine learning application for sustainable agriculture and a community platform for developers.",
+        author_id=1,
+        created_at=datetime(2023, 10, 1),
+        updated_at=datetime(2023, 10, 1),
+        published=False,
+        tags=["Projects", "Ideas", "Innovation"],
+        summary="Collection of new project ideas for future development",
+        category="Projects",
+        likes_count=0,
+        comments_count=0,
+        featured_image=None,
+        read_time=2,
+        slug="draft-new-project-ideas"
+    )
 ]
 
 # Helper functions for original models
@@ -209,6 +401,13 @@ def get_user_by_id(id):
             return user
     return None
 
+def get_user_by_username(username):
+    """Get a user by their username."""
+    for user in sample_users:
+        if user.username == username:
+            return user
+    return None
+
 def get_post_by_id(id):
     """Get a post by its ID."""
     for post in sample_posts:
@@ -216,13 +415,53 @@ def get_post_by_id(id):
             return post
     return None
 
-def get_posts_by_user_id(user_id):
-    """Get all posts written by a specific user."""
-    return [post for post in sample_posts if post.author_id == user_id]
+def get_post_by_slug(slug):
+    """Get a post by its slug."""
+    for post in sample_posts:
+        if post.slug == slug:
+            return post
+    return None
+
+def get_posts_by_user_id(user_id, limit=None, published_only=False):
+    """
+    Get posts written by a specific user.
+
+    Args:
+        user_id (int): The ID of the user.
+        limit (int, optional): Limit the number of posts returned.
+        published_only (bool): If True, return only published posts.
+    """
+    posts = [post for post in sample_posts if post.author_id == user_id]
+
+    if published_only:
+        posts = [post for post in posts if post.published]
+
+    if limit:
+        return posts[:limit]
+    return posts
 
 def get_all_users():
     """Get all users."""
     return sample_users
+
+def get_users_paginated(offset=0, limit=10):
+    """
+    Get users with pagination support.
+
+    Args:
+        offset (int): The number of users to skip.
+        limit (int): The maximum number of users to return.
+    """
+    return sample_users[offset:offset + limit]
+
+def get_users_by_role(role):
+    """
+    Get users filtered by role.
+
+    Args:
+        role (UserRole): The role to filter by.
+    """
+    return [user for user in sample_users if user.role == role]
 
 def get_all_posts(published_only=False):
     """
@@ -235,21 +474,129 @@ def get_all_posts(published_only=False):
         return [post for post in sample_posts if post.published]
     return sample_posts
 
-def get_posts_by_tag(tag):
-    """Get all posts with a specific tag."""
-    return [post for post in sample_posts if tag in post.tags]
-
-def get_posts_paginated(offset=0, limit=10, published_only=False):
+def get_posts_by_tag(tag, limit=None, published_only=False):
     """
-    Get posts with pagination support.
+    Get posts with a specific tag.
+
+    Args:
+        tag (str): The tag to filter by.
+        limit (int, optional): Limit the number of posts returned.
+        published_only (bool): If True, return only published posts.
+    """
+    posts = [post for post in sample_posts if tag in post.tags]
+
+    if published_only:
+        posts = [post for post in posts if post.published]
+
+    if limit:
+        return posts[:limit]
+    return posts
+
+def get_posts_by_category(category, limit=None, published_only=False):
+    """
+    Get posts with a specific category.
+
+    Args:
+        category (str): The category to filter by.
+        limit (int, optional): Limit the number of posts returned.
+        published_only (bool): If True, return only published posts.
+    """
+    posts = [post for post in sample_posts if post.category == category]
+
+    if published_only:
+        posts = [post for post in posts if post.published]
+
+    if limit:
+        return posts[:limit]
+    return posts
+
+def get_posts_paginated(offset=0, limit=10, published_only=False, order_by=None, category=None, tag=None):
+    """
+    Get posts with advanced pagination and filtering support.
 
     Args:
         offset (int): The number of posts to skip.
         limit (int): The maximum number of posts to return.
         published_only (bool): If True, return only published posts.
+        order_by (str): Field to sort by ('created_at', 'updated_at', 'likes_count', 'comments_count').
+        category (str, optional): Filter posts by category.
+        tag (str, optional): Filter posts by tag.
     """
+    # Start with all posts or only published posts
     posts = get_all_posts(published_only)
+
+    # Apply category filter if specified
+    if category:
+        posts = [post for post in posts if post.category == category]
+
+    # Apply tag filter if specified
+    if tag:
+        posts = [post for post in posts if tag in post.tags]
+
+    # Apply sorting if specified
+    if order_by:
+        if order_by == 'created_at':
+            posts = sorted(posts, key=lambda p: p.created_at, reverse=True)
+        elif order_by == 'updated_at':
+            posts = sorted(posts, key=lambda p: p.updated_at, reverse=True)
+        elif order_by == 'likes_count':
+            posts = sorted(posts, key=lambda p: p.likes_count, reverse=True)
+        elif order_by == 'comments_count':
+            posts = sorted(posts, key=lambda p: p.comments_count, reverse=True)
+    else:
+        # Default sort by created_at (newest first)
+        posts = sorted(posts, key=lambda p: p.created_at, reverse=True)
+
+    # Apply pagination
     return posts[offset:offset + limit]
+
+def get_posts_search(search_term, offset=0, limit=10, published_only=True):
+    """
+    Search posts by term in title, content, or tags.
+
+    Args:
+        search_term (str): The term to search for.
+        offset (int): The number of posts to skip.
+        limit (int): The maximum number of posts to return.
+        published_only (bool): If True, search only published posts.
+    """
+    # Get the base posts depending on published status
+    posts = get_all_posts(published_only)
+
+    # Filter posts that match the search term in title, content, or tags
+    search_term = search_term.lower()
+    filtered_posts = []
+
+    for post in posts:
+        if (search_term in post.title.lower() or
+            search_term in post.content.lower() or
+            search_term in post.summary.lower() or
+            any(search_term in tag.lower() for tag in post.tags)):
+            filtered_posts.append(post)
+
+    # Return paginated results
+    return filtered_posts[offset:offset + limit]
+
+def get_popular_tags(limit=10, min_count=1):
+    """
+    Get popular tags with their usage count.
+
+    Args:
+        limit (int): Maximum number of tags to return.
+        min_count (int): Minimum count to include a tag.
+    """
+    # Count tag occurrences
+    tag_counts = {}
+    for post in sample_posts:
+        for tag in post.tags:
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+
+    # Filter by minimum count and sort by count (descending)
+    popular_tags = [(tag, count) for tag, count in tag_counts.items() if count >= min_count]
+    popular_tags.sort(key=lambda x: x[1], reverse=True)
+
+    # Return limited results
+    return popular_tags[:limit]
 
 def add_user(username, email, password, role=UserRole.READER, bio=None):
     """
