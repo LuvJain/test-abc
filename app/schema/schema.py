@@ -15,19 +15,34 @@ from app.models import (
     get_all_books,
     get_all_authors,
     get_user_by_id,
+    get_user_by_username,
+    get_users_by_role,
     get_post_by_id,
     get_posts_by_user_id,
+    get_posts_by_category,
+    get_posts_by_status,
+    get_posts_by_date_range,
     get_all_users,
+    get_users_paginated,
     get_all_posts,
     get_posts_by_tag,
     get_posts_paginated,
+    get_posts_with_advanced_filtering,
+    get_comment_by_id,
+    get_comments_by_post_id,
+    get_comments_by_user_id,
+    get_comment_replies,
+    get_comments_paginated,
     add_user,
     add_post,
+    add_comment,
     update_post,
     authenticate_user,
     login_user,
     user_can_modify_post,
     UserRole,
+    PostStatus,
+    PostCategory,
     JWT_EXPIRATION_DELTA,
 )
 from app.auth import (
@@ -68,6 +83,26 @@ class UserRoleEnum(graphene.Enum):
     EDITOR = UserRole.EDITOR.value
     AUTHOR = UserRole.AUTHOR.value
     READER = UserRole.READER.value
+    MODERATOR = UserRole.MODERATOR.value
+
+class PostStatusEnum(graphene.Enum):
+    """GraphQL enum for PostStatus."""
+    DRAFT = PostStatus.DRAFT.value
+    PUBLISHED = PostStatus.PUBLISHED.value
+    ARCHIVED = PostStatus.ARCHIVED.value
+    SCHEDULED = PostStatus.SCHEDULED.value
+    UNDER_REVIEW = PostStatus.UNDER_REVIEW.value
+
+class PostCategoryEnum(graphene.Enum):
+    """GraphQL enum for PostCategory."""
+    TECHNOLOGY = PostCategory.TECHNOLOGY.value
+    SCIENCE = PostCategory.SCIENCE.value
+    HEALTH = PostCategory.HEALTH.value
+    BUSINESS = PostCategory.BUSINESS.value
+    ENTERTAINMENT = PostCategory.ENTERTAINMENT.value
+    SPORTS = PostCategory.SPORTS.value
+    POLITICS = PostCategory.POLITICS.value
+    OTHER = PostCategory.OTHER.value
 
 class UserType(graphene.ObjectType):
     """GraphQL type for the User model."""
