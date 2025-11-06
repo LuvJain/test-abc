@@ -15,19 +15,34 @@ from app.models import (
     get_all_books,
     get_all_authors,
     get_user_by_id,
+    get_user_by_username,
+    get_users_by_role,
     get_post_by_id,
     get_posts_by_user_id,
+    get_posts_by_category,
+    get_posts_by_status,
+    get_posts_by_date_range,
     get_all_users,
+    get_users_paginated,
     get_all_posts,
     get_posts_by_tag,
     get_posts_paginated,
+    get_posts_with_advanced_filtering,
+    get_comment_by_id,
+    get_comments_by_post_id,
+    get_comments_by_user_id,
+    get_comment_replies,
+    get_comments_paginated,
     add_user,
     add_post,
+    add_comment,
     update_post,
     authenticate_user,
     login_user,
     user_can_modify_post,
     UserRole,
+    PostStatus,
+    PostCategory,
     JWT_EXPIRATION_DELTA,
 )
 from app.auth import (
@@ -68,6 +83,26 @@ class UserRoleEnum(graphene.Enum):
     EDITOR = UserRole.EDITOR.value
     AUTHOR = UserRole.AUTHOR.value
     READER = UserRole.READER.value
+    MODERATOR = UserRole.MODERATOR.value
+
+class PostStatusEnum(graphene.Enum):
+    """GraphQL enum for PostStatus."""
+    DRAFT = PostStatus.DRAFT.value
+    PUBLISHED = PostStatus.PUBLISHED.value
+    ARCHIVED = PostStatus.ARCHIVED.value
+    SCHEDULED = PostStatus.SCHEDULED.value
+    UNDER_REVIEW = PostStatus.UNDER_REVIEW.value
+
+class PostCategoryEnum(graphene.Enum):
+    """GraphQL enum for PostCategory."""
+    TECHNOLOGY = PostCategory.TECHNOLOGY.value
+    SCIENCE = PostCategory.SCIENCE.value
+    HEALTH = PostCategory.HEALTH.value
+    BUSINESS = PostCategory.BUSINESS.value
+    ENTERTAINMENT = PostCategory.ENTERTAINMENT.value
+    SPORTS = PostCategory.SPORTS.value
+    POLITICS = PostCategory.POLITICS.value
+    OTHER = PostCategory.OTHER.value
 
 class UserType(graphene.ObjectType):
     """GraphQL type for the User model."""
@@ -176,6 +211,7 @@ class CreateUserMutation(graphene.Mutation):
     ok = graphene.Boolean()
 
     @staticmethod
+    @require_role([UserRole.ADMIN])  # Only admins can create users with specified roles
     def mutate(root, info, input):
         """Mutation resolver for creating a new user."""
         # Validate input
@@ -186,13 +222,41 @@ class CreateUserMutation(graphene.Mutation):
         if "@" not in input.email or "." not in input.email:
             raise ValueError("Invalid email address")
 
+        if len(input.password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+
+        # Get current user from context
+        current_user = info.context.get('user')
+
+        # Determine the role to assign
+        role = input.role
+        if role is not None:
+            # Convert from GraphQL enum to model enum
+            role_value = role.value
+            role = next(r for r in UserRole if r.value == role_value)
+
+            # Only admins can create users with elevated privileges
+            if role in [UserRole.ADMIN, UserRole.EDITOR, UserRole.MODERATOR] and \
+               current_user.role != UserRole.ADMIN:
+                auth_logger.warning(
+                    f"User {current_user.username} (ID: {current_user.id}) attempted to create "
+                    f"a user with elevated role: {role.value}"
+                )
+                raise GraphQLError("You don't have permission to create users with this role")
+        else:
+            # Default role is READER
+            role = UserRole.READER
+
         # Create new user
         user = add_user(
             username=input.username,
             email=input.email,
+            password=input.password,
+            role=role,
             bio=input.bio
         )
 
+        auth_logger.info(f"User {current_user.username} (ID: {current_user.id}) created a new user: {user.username} (ID: {user.id}) with role: {user.role.value}")
         return CreateUserMutation(user=user, ok=True)
 
 class CreatePostMutation(graphene.Mutation):
@@ -204,6 +268,7 @@ class CreatePostMutation(graphene.Mutation):
     ok = graphene.Boolean()
 
     @staticmethod
+    @require_auth  # User must be authenticated to create a post
     def mutate(root, info, input):
         """Mutation resolver for creating a new post."""
         # Validate input
@@ -212,6 +277,18 @@ class CreatePostMutation(graphene.Mutation):
 
         if len(input.content) < 10:
             raise ValueError("Content must be at least 10 characters long")
+
+        # Get current user from context
+        current_user = info.context.get('user')
+
+        # Check author permissions
+        # Only admins and editors can create posts for other users
+        if input.author_id != current_user.id and current_user.role not in [UserRole.ADMIN, UserRole.EDITOR]:
+            auth_logger.warning(
+                f"User {current_user.username} (ID: {current_user.id}) attempted to create "
+                f"a post for user with ID: {input.author_id}"
+            )
+            raise GraphQLError("You don't have permission to create posts for other users")
 
         # Check if author exists
         user = get_user_by_id(input.author_id)
@@ -227,6 +304,7 @@ class CreatePostMutation(graphene.Mutation):
             published=input.published if input.published is not None else True
         )
 
+        auth_logger.info(f"User {current_user.username} (ID: {current_user.id}) created a new post: {post.title} (ID: {post.id})")
         return CreatePostMutation(post=post, ok=True)
 
 class UpdatePostMutation(graphene.Mutation):
@@ -363,11 +441,45 @@ class Query(graphene.ObjectType):
 
         return posts
 
+class LoginMutation(graphene.Mutation):
+    """Mutation for user login and token generation."""
+    class Arguments:
+        input = LoginInputType(required=True)
+
+    payload = graphene.Field(AuthPayloadType)
+    ok = graphene.Boolean()
+
+    @staticmethod
+    def mutate(root, info, input):
+        """Mutation resolver for user login."""
+        # Validate input
+        if not input.username or not input.password:
+            raise ValueError("Username and password are required")
+
+        # Attempt login
+        token, user = login_user(input.username, input.password)
+
+        # Check if login was successful
+        if not token or not user:
+            auth_logger.warning(f"Failed login attempt for user: {input.username}")
+            raise GraphQLError("Invalid username or password")
+
+        # Create authentication payload
+        payload = AuthPayloadType(
+            token=token,
+            user=user,
+            expires_in=JWT_EXPIRATION_DELTA.total_seconds()
+        )
+
+        auth_logger.info(f"User {user.username} (ID: {user.id}) logged in successfully")
+        return LoginMutation(payload=payload, ok=True)
+
 class Mutation(graphene.ObjectType):
     """Root mutation object for the GraphQL API."""
     create_user = CreateUserMutation.Field()
     create_post = CreatePostMutation.Field()
     update_post = UpdatePostMutation.Field()
+    login = LoginMutation.Field()
 
 # Create the schema
 schema = graphene.Schema(
