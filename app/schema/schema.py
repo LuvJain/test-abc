@@ -7,6 +7,7 @@ This module defines the GraphQL schema, types, and resolvers for the API.
 import graphene
 from graphene import relay
 from datetime import datetime
+from graphql import GraphQLError
 from app.models import (
     get_author_by_id,
     get_book_by_id,
@@ -23,6 +24,18 @@ from app.models import (
     add_user,
     add_post,
     update_post,
+    authenticate_user,
+    login_user,
+    user_can_modify_post,
+    UserRole,
+    JWT_EXPIRATION_DELTA,
+)
+from app.auth import (
+    require_auth,
+    require_role,
+    user_owns_resource,
+    get_authenticated_user,
+    logger as auth_logger,
 )
 
 class AuthorType(graphene.ObjectType):
@@ -49,18 +62,55 @@ class BookType(graphene.ObjectType):
         """Resolver for the author field."""
         return get_author_by_id(parent.author_id)
 
+class UserRoleEnum(graphene.Enum):
+    """GraphQL enum for UserRole."""
+    ADMIN = UserRole.ADMIN.value
+    EDITOR = UserRole.EDITOR.value
+    AUTHOR = UserRole.AUTHOR.value
+    READER = UserRole.READER.value
+
 class UserType(graphene.ObjectType):
     """GraphQL type for the User model."""
     id = graphene.ID(required=True)
     username = graphene.String(required=True)
     email = graphene.String(required=True)
+    role = graphene.Field(UserRoleEnum, required=True)
     created_at = graphene.DateTime(required=True)
     bio = graphene.String()
+    last_login = graphene.DateTime()
     posts = graphene.List(lambda: PostType, description="Posts written by this user")
 
     def resolve_posts(parent, info):
         """Resolver for the posts field."""
-        return get_posts_by_user_id(parent.id)
+        # Get current user from context
+        current_user = info.context.get('user', None)
+
+        # For draft posts, only show to the author or admins/editors
+        if current_user and (current_user.id == parent.id or
+                           current_user.role in [UserRole.ADMIN, UserRole.EDITOR]):
+            # Show all posts including drafts
+            return get_posts_by_user_id(parent.id)
+        else:
+            # Show only published posts
+            return [post for post in get_posts_by_user_id(parent.id) if post.published]
+
+    def resolve_email(parent, info):
+        """Resolver for the email field with privacy protection."""
+        current_user = info.context.get('user', None)
+
+        # Users can see their own email
+        if current_user and current_user.id == parent.id:
+            return parent.email
+
+        # Admins can see any email
+        if current_user and current_user.role == UserRole.ADMIN:
+            return parent.email
+
+        # For others, return a placeholder or partial email
+        if parent.email:
+            username, domain = parent.email.split('@')
+            return f"{username[0]}{'*' * (len(username)-2)}{username[-1]}@{domain}"
+        return None
 
 class PostType(graphene.ObjectType):
     """GraphQL type for the Post model."""
@@ -83,11 +133,24 @@ class TagCountType(graphene.ObjectType):
     tag = graphene.String(required=True)
     count = graphene.Int(required=True)
 
+class AuthPayloadType(graphene.ObjectType):
+    """GraphQL type for authentication response."""
+    token = graphene.String(required=True, description="JWT token for authentication")
+    user = graphene.Field(UserType, required=True, description="The authenticated user")
+    expires_in = graphene.Int(required=True, description="Token expiration time in seconds")
+
 class UserInputType(graphene.InputObjectType):
     """Input type for creating a new user."""
     username = graphene.String(required=True, description="Username for the new user")
     email = graphene.String(required=True, description="Email address for the new user")
+    password = graphene.String(required=True, description="Password for the new user")
+    role = graphene.Field(UserRoleEnum, description="Role for the new user")
     bio = graphene.String(description="Biography for the new user")
+
+class LoginInputType(graphene.InputObjectType):
+    """Input type for user login."""
+    username = graphene.String(required=True, description="Username")
+    password = graphene.String(required=True, description="Password")
 
 class PostInputType(graphene.InputObjectType):
     """Input type for creating a new post."""
