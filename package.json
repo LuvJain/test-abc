@@ -19,7 +19,10 @@
     "express-graphql": "^0.12.0",
     "graphql-middleware": "^6.1.35",
     "graphql-tools": "^9.0.0",
-    "apollo-metrics": "^1.0.1"
+    "apollo-metrics": "^1.0.1",
+    "dataloader": "^2.2.2",
+    "node-cache": "^5.1.2",
+    "graphql-fields": "^2.0.3"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
