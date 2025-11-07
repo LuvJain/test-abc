@@ -22,7 +22,12 @@
     "apollo-metrics": "^1.0.1",
     "dataloader": "^2.2.2",
     "node-cache": "^5.1.2",
-    "graphql-fields": "^2.0.3"
+    "graphql-fields": "^2.0.3",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "dotenv": "^16.3.1",
+    "graphql-shield": "^7.6.5",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
