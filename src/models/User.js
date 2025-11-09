@@ -3,18 +3,26 @@ let users = [
   {
     id: '1',
     name: 'John Doe',
+    username: 'johndoe',
     email: 'john@example.com',
+    displayName: 'John D.',
+    bio: 'Software engineer and open source contributor',
     age: 30,
     role: 'USER',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    lastLogin: new Date().toISOString()
   },
   {
     id: '2',
     name: 'Jane Smith',
+    username: 'janesmith',
     email: 'jane@example.com',
+    displayName: 'Jane S.',
+    bio: 'UI/UX Designer with 5 years experience',
     age: 25,
     role: 'ADMIN',
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    lastLogin: new Date().toISOString()
   }
 ];
 

@@ -15,6 +15,20 @@ const typeDefs = gql`
   }
 
   """
+  UserProfile type represents a user's profile data
+  """
+  type UserProfile {
+    id: ID!
+    username: String!
+    email: String!
+    displayName: String
+    bio: String
+    role: Role
+    createdAt: String
+    lastLogin: String
+  }
+
+  """
   Possible user roles in the system
   """
   enum Role {
@@ -61,6 +75,12 @@ const typeDefs = gql`
     Get total number of users
     """
     userCount: Int!
+
+    """
+    Get the current authenticated user's profile
+    Requires authentication - returns null if not authenticated
+    """
+    me: UserProfile
   }
 
   """

@@ -12,6 +12,9 @@ const resolvers = require('./resolvers');
 // Import middleware
 const performanceMonitoring = require('./middleware/performance');
 
+// Import context factory
+const { createContext } = require('./utils/context');
+
 async function startServer() {
   const app = express();
 
@@ -27,6 +30,7 @@ async function startServer() {
   // Create Apollo Server instance
   const server = new ApolloServer({
     schema: schemaWithMiddleware,
+    context: createContext,
     introspection: config.graphql.introspection,
     plugins: [
       ApolloServerPluginLandingPageGraphQLPlayground({
