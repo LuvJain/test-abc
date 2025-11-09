@@ -7,6 +7,8 @@
 const { createIdLoader } = require('./dataLoaders');
 const UserModel = require('../models/User');
 const { cache } = require('./cache');
+const { extractTokenFromRequest, verifyToken } = require('./auth');
+const config = require('../config');
 
 /**
  * Creates a new context for each GraphQL request
@@ -29,6 +31,26 @@ const createContext = ({ req }) => {
     }
   };
 
+  // Extract and verify authentication token
+  let user = null;
+  try {
+    const token = extractTokenFromRequest(req);
+    if (token) {
+      const decoded = verifyToken(token);
+      if (decoded && decoded.id) {
+        // Fetch user data from model using token info
+        user = UserModel.getById(decoded.id);
+
+        // Log auth attempt if enabled
+        if (config.security.logUnauthorizedAttempts && !user) {
+          console.warn(`[AUTH WARNING] Token validation succeeded but user not found for ID: ${decoded.id}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[AUTH ERROR] Error processing authentication token:', error.message);
+  }
+
   return {
     // Request information
     req,
@@ -39,8 +61,11 @@ const createContext = ({ req }) => {
     // Cache instance
     cache,
 
-    // User information (for authentication, to be implemented)
-    user: null
+    // Authenticated user information
+    user,
+
+    // Helper function to check if user is authenticated
+    isAuthenticated: () => !!user
   };
 };
 
