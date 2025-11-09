@@ -22,6 +22,9 @@ const typeDefs = gql`
     username: String!
     email: String!
     displayName: String
+    firstName: String
+    lastName: String
+    profileImage: String
     bio: String
     role: Role
     createdAt: String
