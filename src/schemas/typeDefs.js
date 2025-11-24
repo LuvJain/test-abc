@@ -61,6 +61,30 @@ const typeDefs = gql`
   }
 
   """
+  Input type for updating a user's profile (partial update)
+  """
+  input UpdateProfileInput {
+    username: String
+    displayName: String
+    firstName: String
+    lastName: String
+    profileImage: String
+    bio: String
+  }
+
+  """
+  Input type for a complete profile update (all fields required)
+  """
+  input FullProfileUpdateInput {
+    username: String!
+    displayName: String!
+    firstName: String!
+    lastName: String!
+    profileImage: String!
+    bio: String!
+  }
+
+  """
   Root Query type
   """
   type Query {
@@ -104,6 +128,25 @@ const typeDefs = gql`
     Delete a user by ID
     """
     deleteUser(id: ID!): Boolean!
+
+    """
+    Update the current authenticated user's profile (partial update)
+    Requires authentication
+    """
+    updateMyProfile(input: UpdateProfileInput!): UserProfile!
+
+    """
+    Update a user's profile (partial update)
+    Requires ADMIN role or ownership of the profile
+    """
+    updateUserProfile(userId: ID!, input: UpdateProfileInput!): UserProfile!
+
+    """
+    Perform a complete update of the current user's profile
+    Requires authentication
+    All fields must be provided (full update)
+    """
+    updateMyProfileFull(input: FullProfileUpdateInput!): UserProfile!
   }
 `;
 
